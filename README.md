@@ -57,12 +57,12 @@ where $\langle \cdot \rangle$ represents the cosine similarity and $\tau$ is the
 The threshold is selected based on the harmful queries and clean images ensuring that the vast majority of clean images pass the detection. The selection of threshold $\tau$ can be formulated as: 
 
 $$
-\begin{equation}
+\begin{align}
 r=\frac{\sum\mathbb{I}(\langle \mathbf{E^\textit{M}_{\textit{text}}}, \mathbf{E^\textit{C}_{\textit{img(o)}}} \rangle - \langle \mathbf{E^\textit{M}_{\textit{text}}}, \mathbf{E^\textit{C}_{\textit{img(d)}}} \rangle <\tau) }{\# \textit{samples}} 
-\end{equation}
+\end{align}
 $$
 
-where $r$ represents the passing rate and $\mathbf{E^\textit{M}_{\textit{text}}}$, $\mathbf{E^\textit{C}_{\textit{img(o)}}}$, $\mathbf{E^\textit{C}_{\textit{img(d)}}}$ stand for the embeddings of input query, the input image and denoised image respectively. The threshold $\tau$ is determined by controlling the passing rate $r$. For example, using the $\tau$ when setting $r$ to 95% as the threshold indicates allowing 95% percent of clean images to pass the detection.
+where $r$ represents the passing rate and $\mathbf{E^\textit{M}_{\textit{text}}}$ , $\mathbf{E^\textit{C}_{\textit{img(o)}}}$ , $\mathbf{E^\textit{C}_{\textit{img(d)}}}$ stand for the embeddings of input query, the input image and denoised image respectively. The threshold $\tau$ is determined by controlling the passing rate $r$. For example, using the $\tau$ when setting $r$ to 95% as the threshold indicates allowing 95% percent of clean images to pass the detection.
 Regarding balance between TPR and FPR, we selected $\tau$ when $r$ equals 95% as the detection threshold of *CIDER*.
 
 
@@ -94,7 +94,7 @@ We conclude that the threshold determined by *CIDER* can be effectively applied 
 
 
 ### Efficiency
-Timely inference is crucial for safeguarding MLLMs in real-world applications. Table \ref{tab:time} shows the time required to process a single input pair and generate up to 300 tokens with different MLLMs, comparing no defense, *CIDER*, and *Jailguard*.
+Timely inference is crucial for safeguarding MLLMs in real-world applications. The table below shows the time required to process a single input pair and generate up to 300 tokens with different MLLMs, comparing no defense, *CIDER*, and *Jailguard*.
 
 | Model | Original | *CIDER* | *Jailguard* |
 | ----- | -------- | ------- | ----------- |
