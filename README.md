@@ -12,7 +12,7 @@ This is the official repository for ["Cross-modality Information Verification fo
 
 ## Abstract
 <p align="center">
-    <img src="src\workflow-1.pdf" width="100%"> <br>
+    <img src="src/workflow.png" width="100%"> <br>
     <br>
     Figure 1: The workflow of safeguarding MLLM against jailbreak attacks via *CIDER*.
 </p>
@@ -26,8 +26,8 @@ This simple yet effective cross-modality information detector, *CIDER*, is indep
 
 <figure align="center">
   <picture>
-    <img src="src/clean_adv_difference.pdf" width="40%"> <img src="src/cos-sim.pdf" width="40%"><br>
-    <img src="src/cos-sim-trends.pdf" width="40%"> <img src="src/delta-cos-sim.pdf" width="40%">
+    <img src="src/clean_adv_difference.jpg" width="40%"> <img src="src/cos-sim.jpg" width="40%"><br>
+    <img src="src/cos-sim-trends.png" width="40%"> <img src="src/delta-cos-sim.jpg" width="40%">
   </picture>
   <figcaption>Figure 2: Experimental result. (a) The distribution of the difference between clean and adversarial images regarding their cos-sim with harmful queries. (b) The distribution of cos-sim between harmful queries and clean/adversarial images. (c) The change of the cos-sim during denoising. (d) The distribution of Δcos-sim before and after denoising of clean/adversarial images.</figcaption>
 </figure>
@@ -65,7 +65,7 @@ Regarding balance between TPR and FPR, we selected $\tau$ when $r$ equals 95% as
 
 ## Performance
 <p align="center">
-    <img src="src/asr.pdf" width="9s0%"> <br>
+    <img src="src/asr.jpg" width="90%"> <br>
     <br>
     Figure 3: ASR of base MLLM, defending with *CIDER* and defending with *Jailguard*
 </p>
@@ -108,7 +108,7 @@ Timely inference is crucial for safeguarding MLLMs in real-world applications. T
 *CIDER* surpasses *Jailguard* in efficiency, adding only 1.02 seconds per input pair on average, which is relatively acceptable compared to the original inference time. In contrast, *Jailguard* requires 8-9 times the original processing time. Additionally, *CIDER* detection is irrelevant to the number of generated tokens in the query answers. Therefore, *CIDER* does not cause additional overhead when increasing the number of generated tokens, ensuring the stability of *CIDER*'s efficiency.
 
 <p align="center">
-    <img src="src/mmvet-1.pdf" width="100%"> <br>
+    <img src="src/mmvet.png" width="100%"> <br>
     <br>
     Figure 4: MLLM performance with and without *CIDER* on MM-Vet.
 </p>
