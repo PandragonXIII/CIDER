@@ -45,24 +45,24 @@ For detailed explanations, please refer to our [paper](https://arxiv.org/abs/240
 Specifically, given a text-image input pair, denoted as <*text*, *img(o)*>, *CIDER* calculates the embeddings of text and image modalities, denoted as $\mathbf{E_{\textit{text}}}$ and $\mathbf{E_{\textit{img(o)}}}$. Then, the built-in denoiser in *CIDER* will perform 350 denoising iterations on the image(o), calculating the denoised embeddings every 50 iterations, denoted as $\mathcal{E}=\mathbf{E_{\textit{img(d)}}}$. 
 The $\textit{img(o)}$ will be identified as an adversarial example if any $\mathbf{E_{\textit{img(d)}}} \in \mathcal{E}$ satisfy the following condition: 
 
-$$
+```math
 \begin{align}
 \langle \mathbf{E_{\textit{text}}}, \mathbf{E_{\textit{img(o)}}} \rangle - \langle \mathbf{E_{\textit{text}}}, \mathbf{E_{\textit{img(d)}}} \rangle >\tau 
 \end{align}
-$$
+```
 
 where $\langle \cdot \rangle$ represents the cosine similarity and $\tau$ is the predefined threshold. Consequently, *CIDER* will directly refuse to follow the user's request by responding ``I'm sorry, but I can not assist.'' if the image modality is detected as adversarial. Otherwise, the original image and query will be fed into the MLLM. 
 
 ### Threshold selection
 The threshold is selected based on the harmful queries and clean images ensuring that the vast majority of clean images pass the detection. The selection of threshold $\tau$ can be formulated as: 
 
-$$
+```math
 \begin{align}
 r=\frac{\sum\mathbb{I}(\langle \mathbf{E^\textit{M}_{\textit{text}}}, \mathbf{E^\textit{C}_{\textit{img(o)}}} \rangle - \langle \mathbf{E^\textit{M}_{\textit{text}}}, \mathbf{E^\textit{C}_{\textit{img(d)}}} \rangle <\tau) }{\# \textit{samples}} 
 \end{align}
-$$
+```
 
-where $r$ represents the passing rate and $\mathbf{E^\textit{M}_{\textit{text}}}$ , $\mathbf{E^\textit{C}_{\textit{img(o)}}}$ , $\mathbf{E^\textit{C}_{\textit{img(d)}}}$ stand for the embeddings of input query, the input image and denoised image respectively. The threshold $\tau$ is determined by controlling the passing rate $r$. For example, using the $\tau$ when setting $r$ to 95% as the threshold indicates allowing 95% percent of clean images to pass the detection.
+where $r$ represents the passing rate and $`\mathbf{E^\textit{M}_{\textit{text}}}`$ , $`\mathbf{E^\textit{C}_{\textit{img(o)}}}`$ , $`\mathbf{E^\textit{C}_{\textit{img(d)}}}`$ stand for the embeddings of input query, the input image and denoised image respectively. The threshold $\tau$ is determined by controlling the passing rate $r$. For example, using the $\tau$ when setting $r$ to 95% as the threshold indicates allowing 95% percent of clean images to pass the detection.
 Regarding balance between TPR and FPR, we selected $\tau$ when $r$ equals 95% as the detection threshold of *CIDER*.
 
 
