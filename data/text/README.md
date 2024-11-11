@@ -1,0 +1,1 @@
+testset.csv and valset.csv are all subset of the Harmbench Benchmark. We only use the harmful queries with type=standard in CIDER as they contain harmful information.

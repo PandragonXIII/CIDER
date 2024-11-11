@@ -1,0 +1,3 @@
+**/__pycache__/*
+temp/*
+code/models/diffusion_denoiser/imagenet/256x256_diffusion_uncond.pt

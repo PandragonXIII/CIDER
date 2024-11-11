@@ -1,0 +1,10 @@
+harmbench_llama_path: /your/path/to/HarmBench-Llama-2-13b
+DnCNN_path: /your/path/to/CIDER/code/models/DnCNN/checkpoint.pth.tar
+Target_model_path: /your/path/to/llava-1.5-7b-hf
+llava15_7b_hf_path: /your/path/to/llava-1.5-7b-hf
+llava16_7b_hf_path:  /your/path/to/llava_1.6_7b_hf
+instructblip_path:  /your/path/to/Instructblip-vicuna-7b
+minigpt4_path: #please change in `code/models/minigpt4/minigpt4_eval.yaml`
+minigpt4_ckpt_path: #please change in `code/models/minigpt4/configs/models/minigpt4_vicuna0.yaml`
+qwen_path: /your/path/to/Qwen_VL_Chat
+bert-base-uncased: /your/path/to/bert-base-uncased

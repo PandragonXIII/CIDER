@@ -1,4 +1,4 @@
-# Defending Jailbreak Attack in VLMs via Cross-modality Information Detector
+# Cross-modality Information Check for Detecting Jailbreaking in Multimodal Large Language Models
 <p align="center">
 <a href='https://github.com/PandragonXIII/CIDER/blob/main/LICENSE'>
 <img src='https://img.shields.io/badge/Code%20License-Apache_2.0-Green'></a> 
@@ -8,7 +8,7 @@
 </p>
 
 
-This is the official repository for ["Cross-modality Information Verification for Defending Multimodal Large Language Models Against Jailbreak Attacks"](https://arxiv.org/abs/2407.21659).
+This is the official repository for ["Cross-modality Information Check for Detecting Jailbreaking in Multimodal Large Language Models"](https://arxiv.org/abs/2407.21659).
 
 ## Abstract
 <p align="center">
@@ -119,14 +119,74 @@ Timely inference is crucial for safeguarding MLLMs in real-world applications. T
 To further demonstrate *CIDER*'s influence on the original utilities on normal queries, we also evaluate the utility of *CIDER* protected MLLMs on MM-Vet benchmark, including recognition, OCR, knowledge, language generation, spatial awareness, and math. As shown in Figure 4, employing *CIDER* leads to an approximate 30% overall performance decline on normal tasks. Specifically, *CIDER* mostly affects the MLLM's recognition, knowledge, and language generation capabilities, while it has minimal impact on OCR, spatial awareness, and math skills. We hypothesize that *CIDER*'s stringent decision-making process, which outright rejects tasks once an image is identified as adversarial, hampers the model's overall performance. An ablation study is also included in the paper.
 
 
-### Open-Source List
-We will soon open-source our codes and datasets, stay tuned!
+## Getting Started
 
+### Installation
+
+1. Prepare the code and the environment
+> You may need to [install](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage) git-lfs first if it has't been installed before.
+
+Git clone our repository, creating a python environment and activate it via the following command
+```
+git clone https://github.com/PandragonXIII/CIDER.git
+cd CIDER
+conda create -n CIDER python=3.10
+pip install -r newrequirements.txt
+conda activate CIDER
+```
+
+2. Prepare the pretrained VLM weights
+CIDER rely on existing VLMs to calculate embeddings and generate answers.
+[LLaVA-1.5-7b](https://huggingface.co/llava-hf/llava-1.5-7b-hf) is required.
+
+Download [HarmBench](https://huggingface.co/cais/HarmBench-Llama-2-13b-cls) to evaluate the harmfulness of generated answers. 
+
+Diffusion based denoiser weight: [Link](https://openaipublic.blob.core.windows.net/diffusion/jul-2021/256x256_diffusion_uncond.pt) and place it at `code/models/diffusion_denoiser/imagenet/256x256_diffusion_uncond.pt`.
+
+To generate responses with more Models, download:
+- [Qwen-VL-Chat](https://huggingface.co/Qwen/Qwen-VL-Chat)
+- [instructblip-vicuna-7b](https://huggingface.co/Salesforce/instructblip-vicuna-7b)
+- MiniGPT-4(vicuna):
+  1. Download the corresponding LLM weights from the following [huggingface space](https://huggingface.co/Vision-CAIR/vicuna/tree/main) via clone the repository using git-lfs. Then set the path in `code/models/minigpt4/configs/models/minigpt4_vicuna0.yaml`
+  2. Download the pretrained model [checkpoints](https://drive.google.com/file/d/1a4zLvaiDBr-36pasffmgpvH5P7CKmpze/view?usp=share_link). Then set the path in `code/models/minigpt4/configs/models/minigpt4_vicuna0.yaml`.
+
+After downloading these models, remember to set the paths in `settings/settings.yaml`.
+
+>for detailed information, see also :
+>- [Diffusion Denoised Smoothing](https://github.com/ethz-spylab/diffusion_denoised_smoothing)
+> - [guided-diffusion](https://github.com/openai/guided-diffusion) is the This is the codebase for Diffusion Denoised Smoothing.
+>- offical repository of [MiniGPT-4](https://github.com/Vision-CAIR/MiniGPT-4)
+>- offical repository of [HarmBench](https://github.com/centerforaisafety/HarmBench)
+>- [Qwen-VL-Chat](https://huggingface.co/Qwen/Qwen-VL-Chat) on huggingface
+>- [LLaVA](https://huggingface.co/llava-hf/llava-1.5-7b-hf) on huggingface
+
+### Preparing data
+
+The image inputs should be placed under `data/img/your_dataset_name/`, and texts stored in csv format in `data/text/text_file_name.csv`. Note that clean images should be named with prefix "clean_" and adversarial images with prefix "prompt_constrained_" (This is necessary only when calculating confusion matrix). Also, the csv file prefer a Harmbench-like format, and our test set as well as validation set are taken from 'standard' behaviors from Harmbench.
+
+### Select a threshold
+
+The threshold is selected utilizing a bunch of **clean** images. Through validation set it is possible to see the effect of hyperparameter $r$ which stands for the passing rate of clean images.
+Take `data/img/clean` and `data/img/valset`, for example. Simply running 
+```shell
+python3 ./code/threshold_selection.py
+```
+would generate a directory `output/valset_analysis`, in which the tpr-fpr plot reflects how $r$ influences CIDER's detect ability. The left-upper point indicates better overall performance. Exact $\tau$ values will be printed in the terminal.
+
+### Evaluation
+
+With a specified threshold, we can evaluate it under test set or other benchmarks through following command:
+```shell
+python3 ./auto_evaluate.py
+```
+You may have to change the settings in `auto_evaluate.py` in advance. Check `code/main.py` for usages of arguments. Logs, generated responses and evaluation results are stored under `output/{group_dir}/{name}` by default.
+---
 
 ## Acknowledgements
 
 - We thank all reviewers for their constructive comments. 
 - This work is supported by the Shanghai Engineering Research Center of Intelligent Vision and Imaging and the Open Research Fund of The State Key Laboratory of Blockchain and Data Security, Zhejiang University.
+- Thanks for all contributors of guided-diffusion,HarmBench,LLaVA,MiniGPT,Qianwen and all other repositories.
 
 ## Citation
 
