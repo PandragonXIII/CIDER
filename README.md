@@ -180,7 +180,7 @@ With a specified threshold, we can evaluate it under test set or other benchmark
 python3 ./auto_evaluate.py
 ```
 You may have to change the settings in `auto_evaluate.py` in advance. Check `code/main.py` for usages of arguments. Logs, generated responses and evaluation results are stored under `output/{group_dir}/{name}` by default.
----
+
 
 ## Acknowledgements
 
