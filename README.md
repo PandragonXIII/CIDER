@@ -211,12 +211,11 @@ optional arguments:
 If you find CIDER useful for your research and applications, please cite using the Bibtex:
 
 ```bibtex
-@inproceedings{
-	anonymous2024defending,
-	title={Defending Jailbreak Attack in {VLM}s via Cross-modality Information Detector},
-	author={Anonymous},
-	booktitle={The 2024 Conference on Empirical Methods in Natural Language Processing},
-	year={2024},
-	url={https://openreview.net/forum?id=pBKvvyg7oM}
+@inproceedings{xu2024cross,
+  title={Cross-modality Information Check for Detecting Jailbreaking in Multimodal Large Language Models},
+  author={Xu, Yue and Qi, Xiuyuan and Qin, Zhan and Wang, Wenjie},
+  booktitle={Findings of the Association for Computational Linguistics: EMNLP 2024},
+  pages={13715--13726},
+  year={2024}
 }
 ```

@@ -1,4 +1,5 @@
 **/__pycache__/*
 temp/*
 code/models/diffusion_denoiser/imagenet/256x256_diffusion_uncond.pt
-code/visualization1.py
+code/visualization.py
+.gitignore
