@@ -181,6 +181,24 @@ python3 ./auto_evaluate.py
 ```
 You may have to change the settings in `auto_evaluate.py` in advance. Check `code/main.py` for usages of arguments. Logs, generated responses and evaluation results are stored under `output/{group_dir}/{name}` by default.
 
+There is another way to evaluate directly with commandline, for example:
+```shell
+python3 ./code/main.py --text_file data/text/valset.csv --img data/img/valset --outdir output/valset_output &
+```
+required arguments:
+- text_file: path to a csv containing harmful queries with out headings, and each query takes up one line .
+- img: path to the folder containing input images.
+- outdir: directory to place the output files.
+optional arguments:
+- threshold: The threshold $\tau$ of Delta cosine similarity distinguishing adversarial images.
+- model: The VLM that generate responses to the query-image pairs, could be one of "llava",  "blip","minigpt4","qwen","gpt4".
+- cuda: GPU id.
+- pair_mode: relation between imgs and queries, should be "combine" or "injection". combine mode will iterate through all images and queries, forming |img|*|query| number of img-query pairs; injection requires |img|==|query| and each image corresponding to one query.
+- multirun: run evaluation multiple times to calculate average score.
+- tempdir: temporary directory path to store intermediate files (like denoised images).
+- denoiser: should be "diffusion" or "dncnn". Reminder: DnCNN do not support multi-stage denoising.
+- no_eval: A flag argument. It will skip Harmbench evaluation phase once added.
+- no_defence: A flag argument. It will skip CIDER defence phase once added.
 
 ## Acknowledgements
 
