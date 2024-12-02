@@ -28,6 +28,7 @@ def get_similarity_matrix(
     image_dir = "./data/img/testset_denoised",
     text_file = "./data/text/testset.csv",
     cossim_file = "./data/cossim/similarity_matrix.csv",
+    injection=False
     ):
     """
     calculate the cosine similarity matrix between each text and denoised images and save the result as csv.
@@ -99,6 +100,9 @@ def get_similarity_matrix(
     for i in tqdm.trange(len(malicious_text_embed_list),desc="outer loop"):
         text_embed = malicious_text_embed_list[i]
         for j in range(len(img_embed_list)):
+            if injection and i!=(j//8)%len(malicious_text_embed_list):
+                malicious_result[i, j] = 0 
+                continue
             img_embed = img_embed_list[j]
             cos_sim = compute_cosine(img_embed, text_embed)
             malicious_result[i, j] = cos_sim
@@ -123,8 +127,8 @@ from defender import plot_tpr_fpr
 from utils import generate_denoised_img
 
 if __name__=="__main__":
-    deviceid = 0
-    dataset = "valset"
+    deviceid = 2
+    dataset = "imageJP"
 
     # generate clean image cossim file for threshold selection
     generate_denoised_img( model="diffusion",
@@ -140,7 +144,7 @@ if __name__=="__main__":
     fin1 = f"./data/img/{dataset}"
     fout1 = f"./temp/img/{dataset}_denoised"
     fin2 = fout1
-    textf = f"./data/text/{dataset}.csv"
+    textf = f"./data/text/valset.csv"
     fout2 = f"./output/{dataset}_analysis/simmatrix_{dataset}.csv"
     # generate valset/testset cossim file to evaluate performance
     generate_denoised_img( model="diffusion",

@@ -3,6 +3,7 @@ automatically test all models with/without defence using testset/mm-vet dataset
 use `python3 ./autoattack.py` to run this script.
 """
 import os,json
+import time
 
 def reformat(filename:str,read_dir:str,save_dir:str):
     """
@@ -30,20 +31,26 @@ def reformat(filename:str,read_dir:str,save_dir:str):
 
 # imgdir = f"/home/xuyue/QXYtemp/mm-vet-data/images218"
 # textfile = f"/home/xuyue/QXYtemp/mm-vet-data/mmvet_query.csv"
-imgdir = "data/img/adv4" # test set
-textfile = "./data/text/testset.csv" # test set
+# imgdir = "data/img/adv4" # test set
+# textfile = "./data/text/testset.csv" # test set
 
-group_dir = "testset" # subdir name of this run
+imgdir = "data/img/mm-dataset"
+textfile = "data/text/mm-dataset.csv"
+
+group_dir = "mm-dataset" # subdir name of this run
 DEFAULT_THRESHOLD = -0.003936767578125
-denoiser = "dncnn"
+denoiser = "diffusion"
 
 
-models = ["blip"]
+models = ["llava1.6"]
 for i,model in enumerate(models):
+    # check if last run has finished
+    while i>0 and not os.path.exists(f"output/{group_dir}/{name}/eval.json"):
+        time.sleep(60)
     name = f"{model}_{imgdir.split('/')[-1]}_{os.path.splitext(textfile)[0].split('/')[-1]}"
     os.system(f"""python3 ./code/main.py --text_file {textfile} \
     --outdir output/{group_dir}/{name}\
     --img {imgdir} --model {model} \
-    --pair_mode combine  --threshold {DEFAULT_THRESHOLD} \
-    --cuda 1 --tempdir ./temp/{name} --denoiser {denoiser} &""")
+    --pair_mode injection  --threshold {DEFAULT_THRESHOLD} \
+    --cuda 2 --tempdir ./temp/{name} --denoiser {denoiser} &""")
     print (f"{model} generating in process\nsrc files: {textfile}, {imgdir}")

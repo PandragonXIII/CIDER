@@ -526,7 +526,7 @@ class QApair:
         self.ans = ans
         self.behav = behav
 
-# from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration # for llava 1.6
+from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration # for llava 1.6
 from transformers import InstructBlipProcessor, InstructBlipForConditionalGeneration
 
 @log
@@ -550,8 +550,8 @@ def get_response(model_name, pairs:list[QApair], device=0)->list[QApair]:
             model = AutoModelForPreTraining.from_pretrained(settings["llava15_7b_hf_path"]) 
         elif model_name=="llava1.6":
             try:
-                processor = LlavaNextProcessor.from_pretrained(settings["llava_16_7b_hf"]) # type: ignore
-                model = LlavaNextForConditionalGeneration.from_pretrained(settings["llava_16_7b_hf"]) # type: ignore
+                processor = LlavaNextProcessor.from_pretrained(settings["llava16_7b_hf_path"]) # type: ignore
+                model = LlavaNextForConditionalGeneration.from_pretrained(settings["llava16_7b_hf_path"]) # type: ignore
             except:
                 raise UserWarning("llava1.6 requires different environment settings, please checkout in advance!")
         else: # blip
