@@ -526,7 +526,10 @@ class QApair:
         self.ans = ans
         self.behav = behav
 
-from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration # for llava 1.6
+try:
+    from transformers import LlavaNextProcessor, LlavaNextForConditionalGeneration # llava 1.6
+except ImportError as e:
+    logger.warning(f"llava1.6 not available, err msg:\n{e}")
 from transformers import InstructBlipProcessor, InstructBlipForConditionalGeneration
 
 @log

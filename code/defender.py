@@ -69,7 +69,8 @@ class Defender():
     def get_lowest_idx(self, cossims):
         """
         given a series of cosine similarity , return whether it is adversarial
-        for adversarial data, return the index of lowest cosine similarity
+        for adversarial data, return the index of lowest cosine similarity iff 
+        the decline value is more than threshold τ, otherwise return 0
 
         :cossims: a nD array of cosine similarity (1*n)
             cols: denoise times n

@@ -15,7 +15,6 @@ output:
 
 import argparse,os
 import pandas as pd
-from PIL import Image
 import time
 import json
 import logging
