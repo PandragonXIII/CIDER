@@ -6,7 +6,7 @@ from transformers import ViTImageProcessor, ViTForImageClassification
 import warnings
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
 from models.diffusion_denoiser.imagenet.guided_diffusion.script_util import (
     NUM_CLASSES,
     model_and_diffusion_defaults,

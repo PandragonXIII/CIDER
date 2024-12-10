@@ -27,6 +27,7 @@ from openai import OpenAI
 import httpx
 import base64
 from io import BytesIO
+import abc
 
 
 logger = logging.getLogger(__name__)
@@ -167,7 +168,7 @@ def defence(imgpth:list[str], args, cpnum=8)->tuple[list[str]|list[list], list[b
 
     # compute cosine similarity
     # sim_matrix = get_similarity_list(args,imgdir=denoised_img_dir,denoise_checkpoint_num=cpnum, save_internal=True)
-    sim_matrix = get_similarity_list_qwen(args,imgdir=denoised_img_dir,denoise_checkpoint_num=cpnum, save_internal=True)
+    sim_matrix = get_similarity_list(args,imgdir=denoised_img_dir,cpnum=cpnum)
     logger.debug(f"shape of sim_matrix: {sim_matrix.shape}")
     # for each row, check with detector
     d_denoise = Defender(threshold=args.threshold)
@@ -201,125 +202,129 @@ def defence(imgpth:list[str], args, cpnum=8)->tuple[list[str]|list[list], list[b
         
     return (ret_images_pths, refuse)
 
-def compute_cosine(a_vec:np.ndarray , b_vec:np.ndarray):
-    """calculate cosine similarity"""
-    norms1 = np.linalg.norm(a_vec, axis=1)
-    norms2 = np.linalg.norm(b_vec, axis=1)
-    dot_products = np.sum(a_vec * b_vec, axis=1)
-    cos_similarities = dot_products / (norms1 * norms2) # ndarray with size=1
-    return cos_similarities[0]
 
-# TODO： use an abstract class to impl this
-@log
-def get_similarity_list_qwen(args, imgdir="./temp/denoised_imgs", denoise_checkpoint_num = 8, save_internal=False):
-    # reference: https://github.com/QwenLM/Qwen2-VL/issues/287#issue-2552147482
-    model = Qwen2VLForConditionalGeneration.from_pretrained(settings["Qwen2_VL_7B"])
-    visual_model = model.visual.to(args.cuda)
+##################
+class Encoder():
+    model_path = None
+    def __init__(self, mdpth) -> types.NoneType:
+        self.model_path = mdpth
+    
+    @staticmethod
+    def compute_cosine(a_vec:np.ndarray , b_vec:np.ndarray):
+        """calculate cosine similarity"""
+        norms1 = np.linalg.norm(a_vec, axis=1)
+        norms2 = np.linalg.norm(b_vec, axis=1)
+        dot_products = np.sum(a_vec * b_vec, axis=1)
+        cos_similarities = dot_products / (norms1 * norms2) # ndarray with size=1
+        return cos_similarities[0]
+    
+    @abc.abstractmethod
+    def calc_cossim(self,pairs:list[tuple[str,str]]):
+        """input list of (query, img path) pairs, 
+        output list of cosin similarities"""
+        res = []
+        for p in pairs:
+            text_embed = self.embed_text(p[0])
+            img_embed = self.embed_img(p[1])
+            cossim = self.compute_cosine(text_embed,img_embed)
+            res.append(cossim)
+        return res
+
+    @abc.abstractmethod
+    def embed_img(self,imgpth)->np.ndarray:
+        pass
+
+    @abc.abstractmethod
+    def embed_text(self,text)->np.ndarray:
+        pass
+
+
+class QwenEncoder(Encoder):
     min_pixels=224*224
     max_pixels=1024*1024
-    processor = AutoProcessor.from_pretrained(settings["Qwen2_VL_7B"], min_pixels=min_pixels, max_pixels=max_pixels)
 
-    def _get_img_embedding(image_path)->np.ndarray:
+    def __init__(self,mdpth,device="cuda:0"):
+        super().__init__(mdpth)
+        self.device=device
+        self.model = Qwen2VLForConditionalGeneration.from_pretrained(settings["Qwen2_VL_7B"]).to(device)
+        self.visual_model = self.model.visual.to(device)
+        self.processor = AutoProcessor.from_pretrained(settings["Qwen2_VL_7B"], min_pixels=self.min_pixels, max_pixels=self.max_pixels)
+    
+    def embed_img(self,imgpth)->np.ndarray:
         messages = [
             {
                 "role": "user",
                 "content": [
                     {
                         "type": "image",
-                        "image": image_path,
-                        'max_pixels': max_pixels,
-                        'min_pixels': min_pixels,
+                        "image": imgpth,
+                        'max_pixels': self.max_pixels,
+                        'min_pixels': self.min_pixels,
                     },
                     {"type": "text", "text": ""},
                 ],
             }
         ]
-        text = processor.apply_chat_template(
+        text = self.processor.apply_chat_template(
             messages, tokenize=False, add_generation_prompt=True
         )
         image_inputs, video_inputs = process_vision_info(messages)
-        inputs = processor(
+        inputs = self.processor(
             text=[text],
             images=image_inputs,
-            # videos=video_inputs,
             padding=True,
             return_tensors="pt",
         )
-        inputs = inputs.to(args.cuda)
+        inputs = inputs.to(self.device)
 
         pixel_values = inputs["pixel_values"].type(torch.bfloat16)
 
-        image_embeds = visual_model(pixel_values, grid_thw=inputs["image_grid_thw"]) # shape: [n tokens, 3584]
+        image_embeds = self.visual_model(pixel_values, grid_thw=inputs["image_grid_thw"]) # shape: [n tokens, 3584]
 
         # calculate average to compress the 2th dimension
         image_features = torch.mean(image_embeds, dim=0).detach().to("cpu").numpy().reshape(1,-1)
         return image_features
 
-    def _get_text_embedding(text: str)->np.ndarray:
-        text = processor.apply_chat_template(text, tokenize=False, add_generation_prompt=True)
-        input_ids = processor.tokenizer(text, return_tensors="pt").input_ids.to("cpu")
-        input_embeds = model.model.embed_tokens(input_ids)
+    def embed_text(self, text)->np.ndarray:
+        text = self.processor.apply_chat_template(text, tokenize=False, add_generation_prompt=True)
+        input_ids = self.processor.tokenizer(text, return_tensors="pt").input_ids.to(self.device)
+        input_embeds = self.model.model.embed_tokens(input_ids)
         # calculate average to get shape[1, 3584]
         input_embeds = torch.mean(input_embeds, dim=1).detach().to("cpu").numpy()
         return input_embeds
 
-    # generate embeddings for texts
-    text_embed_list = []
-    with open(args.text_file, "r") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            ret = _get_text_embedding(row[0])
-            text_embed_list.append(ret)
-    logger.debug(f"number of queries: {len(text_embed_list)}")
 
-    # generate embeddings for images
-    img_embed_list = []
-    img_names = []
-    dir1 = os.listdir(imgdir)
-    dir1.sort()
-    for img in dir1:
-        ret = _get_img_embedding(os.path.join(imgdir,img))
-        img_embed_list.append(ret)
-        img_names.append(os.path.splitext(img)[0])
-    logger.debug(f"number of imgs(denoised): {len(img_embed_list)}")
+class LlavaEncoder(Encoder):
+    def __init__(self, mdpth,device="cuda:0") -> types.NoneType:
+        super().__init__(mdpth)
+        self.device=device
+        self.model = AutoModelForPreTraining.from_pretrained(
+        mdpth, torch_dtype=torch.float16, low_cpu_mem_usage=True).to(device)
+        self.tokenizer = AutoTokenizer.from_pretrained(mdpth)
+        self.imgprocessor = AutoImageProcessor.from_pretrained(mdpth)
 
-    # compute cosine similarity between text and n denoised images
-    # and form a table of size (len(text_embed_list), args.denoise_checkpoint_num)
-    image_num = len(img_embed_list)//denoise_checkpoint_num
-    if args.pair_mode=="combine":
-        cossims = np.zeros((len(text_embed_list),image_num, denoise_checkpoint_num))
-        for i in range(len(text_embed_list)):
-            for j in range(image_num):
-                for k in range(denoise_checkpoint_num):
-                    text_embed = text_embed_list[i]
-                    img_embed = img_embed_list[j*denoise_checkpoint_num+k]
-                    cossims[i, j, k] = compute_cosine(img_embed, text_embed)
-    else: # injection
-        logger.debug(f"#text: {len(text_embed_list)}\n#cpnum: {denoise_checkpoint_num}\n#img list: {len(img_embed_list)}")
-        cossims = np.zeros((len(text_embed_list), denoise_checkpoint_num))
-        for i in range(len(text_embed_list)):
-            for j in range(denoise_checkpoint_num):
-                text_embed = text_embed_list[i]
-                img_embed = img_embed_list[i*denoise_checkpoint_num+j]
-                cossims[i, j] = compute_cosine(img_embed, text_embed)
+    def embed_img(self, imgpth) -> np.ndarray:
+        image = Image.open(imgpth)
+        # img embedding
+        pixel_value = self.imgprocessor(image, return_tensors="pt").pixel_values.to(self.device)
+        image_outputs = self.model.vision_tower(pixel_value, output_hidden_states=True)
+        selected_image_feature = image_outputs.hidden_states[self.model.config.vision_feature_layer]
+        selected_image_feature = selected_image_feature[:, 1:] # by default
+        image_features = self.model.multi_modal_projector(selected_image_feature)
+        # calculate average to compress the 2th dimension
+        image_features = torch.mean(image_features, dim=1).detach().to("cpu").numpy()
+        return image_features
 
-
-    # save embeddings and cosine similarity matrix
-    if save_internal:
-        os.mkdir(args.tempdir+"/embedding")
-        torch.save(img_embed_list, f"{args.tempdir}/embedding/image_embeddings.pt")
-        torch.save(text_embed_list, f"{args.tempdir}/embedding/text_embeddings.pt")
-        with open(f"{args.tempdir}/cosine_similarity.csv", "x") as f:
-            writer = csv.writer(f)
-            writer.writerow(img_names)
-            writer.writerows(cossims)
-        logger.info(f"csv file saved at: {args.tempdir}")
-
-    return cossims
+    def embed_text(self, text) -> np.ndarray:
+        input_ids = self.tokenizer(text, return_tensors="pt").input_ids.to(self.device)
+        input_embeds = self.model.get_input_embeddings()(input_ids)
+        # calculate average to get shape[1, 4096]
+        input_embeds = torch.mean(input_embeds, dim=1).detach().to("cpu").numpy()
+        return input_embeds
 
 @log
-def get_similarity_list(args, imgdir="./temp/denoised_imgs", denoise_checkpoint_num = 8, save_internal=False):
-    """            
+def get_similarity_list(args, imgdir="./temp/denoised_imgs", encoder_pth:str=settings["Embed_model_path"], cpnum = 8):
+    """
     calculate the cosine similarity matrix between each text and denoised images and save the result as csv.
     called by main.py
 
@@ -330,89 +335,39 @@ def get_similarity_list(args, imgdir="./temp/denoised_imgs", denoise_checkpoint_
         :width: number of images in the dir
         :height: len(text_embed_list)
     """
-    model = AutoModelForPreTraining.from_pretrained(
-        settings["Target_model_path"], torch_dtype=torch.float16, low_cpu_mem_usage=True)
-    model.to(args.cuda)# this could run out of memory
-
-    tokenizer = AutoTokenizer.from_pretrained(settings["Target_model_path"])
-    imgprocessor = AutoImageProcessor.from_pretrained(settings["Target_model_path"])
-
-    def _get_img_embedding(image_path)->np.ndarray:
-        image = Image.open(image_path)
-        # img embedding
-        pixel_value = imgprocessor(image, return_tensors="pt").pixel_values.to(args.cuda)
-        image_outputs = model.vision_tower(pixel_value, output_hidden_states=True)
-        selected_image_feature = image_outputs.hidden_states[model.config.vision_feature_layer]
-        selected_image_feature = selected_image_feature[:, 1:] # by default
-        image_features = model.multi_modal_projector(selected_image_feature)
-        # calculate average to compress the 2th dimension
-        image_features = torch.mean(image_features, dim=1).detach().to("cpu").numpy()
-        del pixel_value, image_outputs, selected_image_feature
-        torch.cuda.empty_cache()
-        return image_features
-
-    def _get_text_embedding(text: str)->np.ndarray:
-        input_ids = tokenizer(text, return_tensors="pt").input_ids.to(args.cuda)
-        input_embeds = model.get_input_embeddings()(input_ids)
-        # calculate average to get shape[1, 4096]
-        input_embeds = torch.mean(input_embeds, dim=1).detach().to("cpu").numpy()
-        del input_ids
-        torch.cuda.empty_cache()
-        return input_embeds
-
-    # generate embeddings for texts
-    text_embed_list = []
-    with open(args.text_file, "r") as f:
-        reader = csv.reader(f)
-        for row in reader:
-            ret = _get_text_embedding(row[0])
-            text_embed_list.append(ret)
-    logger.debug(f"number of queries: {len(text_embed_list)}")
-
-    # generate embeddings for images
-    img_embed_list = []
-    img_names = []
-    dir1 = os.listdir(imgdir)
-    dir1.sort()
-    for img in dir1:
-        ret = _get_img_embedding(os.path.join(imgdir,img))
-        img_embed_list.append(ret)
-        img_names.append(os.path.splitext(img)[0])
-    logger.debug(f"number of imgs(denoised): {len(img_embed_list)}")
-
+    if "qwen" in encoder_pth.lower():
+        encoder = QwenEncoder(encoder_pth,args.cuda)
+    elif "llava" in encoder_pth.lower():
+        encoder = LlavaEncoder(encoder_pth,args.device)
+    else:
+        raise ValueError(f"Unrecognised encoder Type from:{encoder_pth}")
+    
+    # load text inputs
+    with open(args.text_file) as fr:
+        reader = csv.reader(fr)
+        queries = [line[0] for line in reader]
+    # load image paths
+    dir1 = sorted(os.listdir(imgdir))
+    img_pths = [os.path.join(imgdir,img) for img in dir1]
     # compute cosine similarity between text and n denoised images
-    # and form a table of size (len(text_embed_list), args.denoise_checkpoint_num)
-    image_num = len(img_embed_list)//denoise_checkpoint_num
+    # and form a table of size ((len(queries),image_num, ckpt_num)) or (len(text_embed_list), ckpt_num)
+    image_num = len(img_pths)//cpnum
     if args.pair_mode=="combine":
-        cossims = np.zeros((len(text_embed_list),image_num, denoise_checkpoint_num))
-        for i in range(len(text_embed_list)):
+        cossims = np.zeros((len(queries),image_num, cpnum))
+        for i in range(len(queries)):
             for j in range(image_num):
-                for k in range(denoise_checkpoint_num):
-                    text_embed = text_embed_list[i]
-                    img_embed = img_embed_list[j*denoise_checkpoint_num+k]
-                    cossims[i, j, k] = compute_cosine(img_embed, text_embed)
+                inputs = [(queries[i],img_pths[k]) for k in range(j*cpnum,(j+1)*cpnum)]
+                temp = encoder.calc_cossim(inputs)
+                cossims[i,j] = temp
     else: # injection
-        logger.debug(f"#text: {len(text_embed_list)}\n#cpnum: {denoise_checkpoint_num}\n#img list: {len(img_embed_list)}")
-        cossims = np.zeros((len(text_embed_list), denoise_checkpoint_num))
-        for i in range(len(text_embed_list)):
-            for j in range(denoise_checkpoint_num):
-                text_embed = text_embed_list[i]
-                img_embed = img_embed_list[i*denoise_checkpoint_num+j]
-                cossims[i, j] = compute_cosine(img_embed, text_embed)
-
-
-    # save embeddings and cosine similarity matrix
-    if save_internal:
-        os.mkdir(args.tempdir+"/embedding")
-        torch.save(img_embed_list, f"{args.tempdir}/embedding/image_embeddings.pt")
-        torch.save(text_embed_list, f"{args.tempdir}/embedding/text_embeddings.pt")
-        with open(f"{args.tempdir}/cosine_similarity.csv", "x") as f:
-            writer = csv.writer(f)
-            writer.writerow(img_names)
-            writer.writerows(cossims)
-        logger.info(f"csv file saved at: {args.tempdir}")
-
+        cossims = np.zeros((len(queries), cpnum))
+        for i in range(image_num):
+            inputs = [(queries[i],img_pths[k]) for k in range(i*cpnum,(i+1)*cpnum)]
+            temp = encoder.calc_cossim(inputs)
+            cossims[i] = temp
     return cossims
+
+
 
 @log
 def generate_denoised_img(model="diffusion",**kwargs):
@@ -806,33 +761,6 @@ def query_minigpt(question,img,chat):
         chat_state = ask(chat,question, chat_state)
         llm_message, chat_state, img_list = answer(chat,chat_state, img_list)
     return llm_message
-
-def get_img_embedding(image_path:list,device="cuda:0"):
-    model_path = settings["Target_model_path"]
-    ########################
-    model = AutoModelForPreTraining.from_pretrained(
-        model_path, torch_dtype=torch.float16, low_cpu_mem_usage=True)
-    model.to(device)
-    imgprocessor = AutoImageProcessor.from_pretrained(model_path)
-
-    images = []
-    for img in image_path:
-        images.append(Image.open(img))
-    
-    res = []
-    for image in images:
-        # img embedding
-        pixel_value = imgprocessor(image, return_tensors="pt").pixel_values.to(device)
-        image_outputs = model.vision_tower(pixel_value, output_hidden_states=True)
-        selected_image_feature = image_outputs.hidden_states[model.config.vision_feature_layer]
-        selected_image_feature = selected_image_feature[:, 1:] # by default
-        image_features = model.multi_modal_projector(selected_image_feature) #torch.Size([1, 576, 4096])
-        # calculate average to compress the 2th dimension
-        image_features = torch.mean(image_features, dim=1).detach().to("cpu")
-        res.append(image_features[0])
-    del pixel_value, image_outputs, selected_image_feature
-    torch.cuda.empty_cache()
-    return res
 
 # helper functions for GPT
 # REMINDER: gpt4 only support [png,jp(e)g,webp,gif] at present
