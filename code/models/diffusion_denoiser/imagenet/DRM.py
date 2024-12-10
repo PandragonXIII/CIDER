@@ -56,7 +56,7 @@ class DiffusionRobustModel(nn.Module):
         )
         mdpath = f"{os.path.dirname(__file__)}/256x256_diffusion_uncond.pt"
         model.load_state_dict(
-            torch.load(mdpath,map_location=device,weights_only=True)
+            torch.load(mdpath,map_location=device,weights_only=False)
         )
         warnings.warn(f"\033[7m Using trained model from {mdpath} \033[0m",UserWarning)
         model.eval().cuda(device)

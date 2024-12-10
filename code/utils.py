@@ -13,7 +13,8 @@ import shutil
 from math import ceil
 from PIL import Image
 from torchvision import transforms
-from transformers import AutoProcessor, AutoModelForPreTraining, AutoTokenizer, AutoModelForCausalLM, AutoImageProcessor
+from transformers import AutoProcessor, AutoModelForPreTraining, AutoTokenizer, AutoModelForCausalLM, AutoImageProcessor,Qwen2VLForConditionalGeneration
+from qwen_vl_utils import process_vision_info
 
 
 from models.diffusion_denoiser.imagenet.DRM import DiffusionRobustModel
@@ -165,7 +166,8 @@ def defence(imgpth:list[str], args, cpnum=8)->tuple[list[str]|list[list], list[b
     logger.debug(f"de_imgs:{denoised_imgpth}")
 
     # compute cosine similarity
-    sim_matrix = get_similarity_list(args,imgdir=denoised_img_dir,denoise_checkpoint_num=cpnum, save_internal=True)
+    # sim_matrix = get_similarity_list(args,imgdir=denoised_img_dir,denoise_checkpoint_num=cpnum, save_internal=True)
+    sim_matrix = get_similarity_list_qwen(args,imgdir=denoised_img_dir,denoise_checkpoint_num=cpnum, save_internal=True)
     logger.debug(f"shape of sim_matrix: {sim_matrix.shape}")
     # for each row, check with detector
     d_denoise = Defender(threshold=args.threshold)
@@ -206,6 +208,114 @@ def compute_cosine(a_vec:np.ndarray , b_vec:np.ndarray):
     dot_products = np.sum(a_vec * b_vec, axis=1)
     cos_similarities = dot_products / (norms1 * norms2) # ndarray with size=1
     return cos_similarities[0]
+
+# TODO： use an abstract class to impl this
+@log
+def get_similarity_list_qwen(args, imgdir="./temp/denoised_imgs", denoise_checkpoint_num = 8, save_internal=False):
+    # reference: https://github.com/QwenLM/Qwen2-VL/issues/287#issue-2552147482
+    model = Qwen2VLForConditionalGeneration.from_pretrained(settings["Qwen2_VL_7B"])
+    visual_model = model.visual.to(args.cuda)
+    min_pixels=224*224
+    max_pixels=1024*1024
+    processor = AutoProcessor.from_pretrained(settings["Qwen2_VL_7B"], min_pixels=min_pixels, max_pixels=max_pixels)
+
+    def _get_img_embedding(image_path)->np.ndarray:
+        messages = [
+            {
+                "role": "user",
+                "content": [
+                    {
+                        "type": "image",
+                        "image": image_path,
+                        'max_pixels': max_pixels,
+                        'min_pixels': min_pixels,
+                    },
+                    {"type": "text", "text": ""},
+                ],
+            }
+        ]
+        text = processor.apply_chat_template(
+            messages, tokenize=False, add_generation_prompt=True
+        )
+        image_inputs, video_inputs = process_vision_info(messages)
+        inputs = processor(
+            text=[text],
+            images=image_inputs,
+            # videos=video_inputs,
+            padding=True,
+            return_tensors="pt",
+        )
+        inputs = inputs.to(args.cuda)
+
+        pixel_values = inputs["pixel_values"].type(torch.bfloat16)
+
+        image_embeds = visual_model(pixel_values, grid_thw=inputs["image_grid_thw"]) # shape: [n tokens, 3584]
+
+        # calculate average to compress the 2th dimension
+        image_features = torch.mean(image_embeds, dim=0).detach().to("cpu").numpy().reshape(1,-1)
+        return image_features
+
+    def _get_text_embedding(text: str)->np.ndarray:
+        text = processor.apply_chat_template(text, tokenize=False, add_generation_prompt=True)
+        input_ids = processor.tokenizer(text, return_tensors="pt").input_ids.to("cpu")
+        input_embeds = model.model.embed_tokens(input_ids)
+        # calculate average to get shape[1, 3584]
+        input_embeds = torch.mean(input_embeds, dim=1).detach().to("cpu").numpy()
+        return input_embeds
+
+    # generate embeddings for texts
+    text_embed_list = []
+    with open(args.text_file, "r") as f:
+        reader = csv.reader(f)
+        for row in reader:
+            ret = _get_text_embedding(row[0])
+            text_embed_list.append(ret)
+    logger.debug(f"number of queries: {len(text_embed_list)}")
+
+    # generate embeddings for images
+    img_embed_list = []
+    img_names = []
+    dir1 = os.listdir(imgdir)
+    dir1.sort()
+    for img in dir1:
+        ret = _get_img_embedding(os.path.join(imgdir,img))
+        img_embed_list.append(ret)
+        img_names.append(os.path.splitext(img)[0])
+    logger.debug(f"number of imgs(denoised): {len(img_embed_list)}")
+
+    # compute cosine similarity between text and n denoised images
+    # and form a table of size (len(text_embed_list), args.denoise_checkpoint_num)
+    image_num = len(img_embed_list)//denoise_checkpoint_num
+    if args.pair_mode=="combine":
+        cossims = np.zeros((len(text_embed_list),image_num, denoise_checkpoint_num))
+        for i in range(len(text_embed_list)):
+            for j in range(image_num):
+                for k in range(denoise_checkpoint_num):
+                    text_embed = text_embed_list[i]
+                    img_embed = img_embed_list[j*denoise_checkpoint_num+k]
+                    cossims[i, j, k] = compute_cosine(img_embed, text_embed)
+    else: # injection
+        logger.debug(f"#text: {len(text_embed_list)}\n#cpnum: {denoise_checkpoint_num}\n#img list: {len(img_embed_list)}")
+        cossims = np.zeros((len(text_embed_list), denoise_checkpoint_num))
+        for i in range(len(text_embed_list)):
+            for j in range(denoise_checkpoint_num):
+                text_embed = text_embed_list[i]
+                img_embed = img_embed_list[i*denoise_checkpoint_num+j]
+                cossims[i, j] = compute_cosine(img_embed, text_embed)
+
+
+    # save embeddings and cosine similarity matrix
+    if save_internal:
+        os.mkdir(args.tempdir+"/embedding")
+        torch.save(img_embed_list, f"{args.tempdir}/embedding/image_embeddings.pt")
+        torch.save(text_embed_list, f"{args.tempdir}/embedding/text_embeddings.pt")
+        with open(f"{args.tempdir}/cosine_similarity.csv", "x") as f:
+            writer = csv.writer(f)
+            writer.writerow(img_names)
+            writer.writerows(cossims)
+        logger.info(f"csv file saved at: {args.tempdir}")
+
+    return cossims
 
 @log
 def get_similarity_list(args, imgdir="./temp/denoised_imgs", denoise_checkpoint_num = 8, save_internal=False):
