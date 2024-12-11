@@ -131,7 +131,7 @@ Git clone our repository, creating a python environment and activate it via the 
 git clone https://github.com/PandragonXIII/CIDER.git
 cd CIDER
 conda create -n CIDER python=3.10
-pip install -r newrequirements.txt
+pip install -r requirements.txt
 conda activate CIDER
 ```
 
@@ -148,7 +148,7 @@ To generate responses with more Models, download:
 - [instructblip-vicuna-7b](https://huggingface.co/Salesforce/instructblip-vicuna-7b)
 - MiniGPT-4(vicuna):
   1. Download the corresponding LLM weights from the following [huggingface space](https://huggingface.co/Vision-CAIR/vicuna/tree/main) via clone the repository using git-lfs. Then set the path in `code/models/minigpt4/configs/models/minigpt4_vicuna0.yaml`
-  2. Download the pretrained model [checkpoints](https://drive.google.com/file/d/1a4zLvaiDBr-36pasffmgpvH5P7CKmpze/view?usp=share_link). Then set the path in `code/models/minigpt4/configs/models/minigpt4_vicuna0.yaml`.
+  2. Download the pretrained model [checkpoints](https://drive.google.com/file/d/1a4zLvaiDBr-36pasffmgpvH5P7CKmpze/view?usp=share_link). Then set the path in `code/models/minigpt4/minigpt4_eval.yaml` line 8. (a 7b version is provided in out repository [here](code/models/minigpt4/prerained_minigpt4_7b.pth))
 
 After downloading these models, remember to set the paths in `settings/settings.yaml`.
 
