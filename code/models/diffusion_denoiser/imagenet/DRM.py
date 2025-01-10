@@ -6,7 +6,7 @@ from transformers import ViTImageProcessor, ViTForImageClassification
 import warnings
 
 os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
-os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
 from models.diffusion_denoiser.imagenet.guided_diffusion.script_util import (
     NUM_CLASSES,
     model_and_diffusion_defaults,
@@ -56,7 +56,7 @@ class DiffusionRobustModel(nn.Module):
         )
         mdpath = f"{os.path.dirname(__file__)}/256x256_diffusion_uncond.pt"
         model.load_state_dict(
-            torch.load(mdpath,map_location=device,weights_only=True)
+            torch.load(mdpath,map_location=device,weights_only=False)
         )
         warnings.warn(f"\033[7m Using trained model from {mdpath} \033[0m",UserWarning)
         model.eval().cuda(device)

@@ -15,3 +15,6 @@ code/models/minigpt4/configs/models/minigpt4_vicuna0.yaml
 code/models/minigpt4/minigpt4_eval.yaml
 *.log
 TODO
+.vscode
+code/test.py
+code/models/diffusion_denoiser/vit-patch16-224/pytorch_model.bin

@@ -39,7 +39,7 @@ def main(args):
     # Define the smoothed classifier 
     smoothed_classifier = Smooth(model, 1000, args.sigma, t)
     os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "max_split_size_mb:128"
-    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1'
+    os.environ['CUDA_VISIBLE_DEVICES'] = '0,1,2,3'
     device_ids = [0,1]
     smoothed_classifier = torch.nn.DataParallel(smoothed_classifier, device_ids =device_ids).cuda()
 
