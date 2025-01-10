@@ -1,4 +1,5 @@
 **/__pycache__/*
+.vscode/
 temp/*
 code/models/diffusion_denoiser/imagenet/256x256_diffusion_uncond.pt
 code/visualization.py
@@ -12,3 +13,5 @@ code/models/minigpt4/minigpt4_eval.yaml
 settings/settings.yaml
 code/models/minigpt4/configs/models/minigpt4_vicuna0.yaml
 code/models/minigpt4/minigpt4_eval.yaml
+*.log
+TODO
