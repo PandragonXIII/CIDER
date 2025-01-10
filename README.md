@@ -124,7 +124,7 @@ To further demonstrate *CIDER*'s influence on the original utilities on normal q
 ### Installation
 
 1. Prepare the code and the environment
-> You may need to [install](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage) git-lfs first if it has't been installed before.
+> ~~You may need to [install](https://docs.github.com/en/repositories/working-with-files/managing-large-files/installing-git-large-file-storage) git-lfs first if it has't been installed before.~~
 
 Git clone our repository, creating a python environment and activate it via the following command
 ```
@@ -134,8 +134,14 @@ conda create -n CIDER python=3.10
 pip install -r requirements.txt
 conda activate CIDER
 ```
+2. Download diffusion-denoiser model weight
+The diffusion-based denoiser uses vit as base model. Download the model weight through:
+```shell
+wget -c -O code/models/diffusion_denoiser/vit-patch16-224/pytorch_model2.bin https://huggingface.co/google/vit-base-patch16-224/resolve/main/pytorch_model.bin?download=true
+```
+> for Chinese users, *hf-mirror.com* is recommended
 
-2. Prepare the pretrained VLM weights
+3. Prepare the pretrained VLM weights
 CIDER rely on existing VLMs to calculate embeddings and generate answers.
 [LLaVA-1.5-7b](https://huggingface.co/llava-hf/llava-1.5-7b-hf) is required.
 
