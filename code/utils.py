@@ -281,7 +281,7 @@ class LlavaEncoder(Encoder):
         return input_embeds
 
 @log
-def get_similarity_list(text_file,pair_mode, imgdir="./temp/denoised_imgs",device="cuda:0", encoder_pth:str=settings["Embed_model_path"], cpnum = 8):
+def get_similarity_list(text_file,pair_mode, imgdir="./temp/denoised_imgs",device="cuda:0", encoder_pth:str=settings["Target_model_path"], cpnum = 8):
     """
     calculate the cosine similarity matrix between each text and denoised images and save the result as csv.
     called by main.py

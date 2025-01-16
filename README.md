@@ -137,7 +137,7 @@ conda activate CIDER
 2. Download diffusion-denoiser model weight
 The diffusion-based denoiser uses vit as base model. Download the model weight through:
 ```shell
-wget -c -O code/models/diffusion_denoiser/vit-patch16-224/pytorch_model2.bin https://huggingface.co/google/vit-base-patch16-224/resolve/main/pytorch_model.bin?download=true
+wget -c -O code/models/diffusion_denoiser/vit-patch16-224/pytorch_model.bin https://huggingface.co/google/vit-base-patch16-224/resolve/main/pytorch_model.bin?download=true
 ```
 > for Chinese users, *hf-mirror.com* is recommended
 
